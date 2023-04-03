@@ -15,3 +15,7 @@
 /source/util/promisified.js.map
 /source/index.js
 /source/index.js.map
+/secret.dec
+/secret.txt
+/node_modules/
+/__MACOSX/
