@@ -43,7 +43,6 @@ const getFork = <R extends Serializable>(modulePath: string, filePath: string): 
 
     const server = https.createServer(options, (req, res) => {
 
-        // TODO: Handle parsing in child processes, again, time is running out :/
         return Promise.all([
             getFork<number>('./modules/sumFile', UNZIP_FILE),
             getFork<number>('./modules/sumVocals', UNZIP_FILE),
