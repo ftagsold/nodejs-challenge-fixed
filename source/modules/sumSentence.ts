@@ -31,7 +31,7 @@ process.on('message', (filePath: string) => {
                 // Sum all numbers
                 for (let i = 0, nl = numbersInSentence.length; i < nl; i++) {
 
-                    sum += parseInt(numbersInSentence[i]);
+                    sum += parseInt(numbersInSentence[i], 10);
 
                 }
 

@@ -47,16 +47,10 @@ const getFork = <R extends Serializable>(modulePath: string, filePath: string): 
             getFork<number>('./modules/sumFile', UNZIP_FILE),
             getFork<number>('./modules/sumVocals', UNZIP_FILE),
             getFork<string>('./modules/sumSentence', UNZIP_FILE)
-        ]).then(([all, vocals, secret]) => {
+        ]).then(([sumFile, sumVocals, secret]) => {
 
-            res.setHeader('content-type', 'application/json; charset=utf-8');
             res.writeHead(200);
-            res.end(`
-                Sum numbers: ${all}
-                Sum vocals: ${vocals}
-                Numbers + Vocals: ${all + vocals}
-                Secret: ${secret}
-            `);
+            res.end(`Sum file: ${sumFile}\nSum vocals: ${sumVocals}\nSecret: ${secret}`);
 
         });
 

@@ -1,6 +1,6 @@
 import {fileReader} from '../util/file-reader';
 
-const VOCAL_REGEX = /[aeiou]/gi;
+const VOCAL_REGEX = /[aeiouAEIOU]/g;
 
 // Duplicates required, toLowerCase on every vocal would be slower
 const VOCAL_VAL_MAP: { [key: string]: number } = {
@@ -44,9 +44,9 @@ process.on('message', (filePath: string) => {
     // Resolve with final result
     reader.on('close', () => {
 
-        process!.send!(sumVocals);
+        process?.send!(sumVocals);
 
-        process!.exit();
+        process?.exit();
 
     });
 

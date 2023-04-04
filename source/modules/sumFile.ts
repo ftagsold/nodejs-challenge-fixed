@@ -4,7 +4,7 @@ const NUMBER_REGEX = /\d/g;
 
 process.on('message', (filePath: string) => {
 
-    let sumAll = 0;
+    let result = 0;
 
     const reader = fileReader(filePath);
 
@@ -20,7 +20,7 @@ process.on('message', (filePath: string) => {
             // Sum all numbers
             for (let i = 0, nl = numbersInLine.length; i < nl; i++) {
 
-                sumAll += parseInt(numbersInLine[i]);
+                result += parseInt(numbersInLine[i], 10);
 
             }
 
@@ -31,9 +31,9 @@ process.on('message', (filePath: string) => {
     // Resolve promise with final result
     reader.on('close', () => {
 
-        process!.send!(sumAll);
+        process?.send!(result);
 
-        process!.exit();
+        process?.exit();
 
     });
 
