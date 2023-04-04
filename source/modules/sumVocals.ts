@@ -1,6 +1,6 @@
 import {fileReader} from '../util/file-reader';
 
-const REGEX = /[aeiou]/gi;
+const VOCAL_REGEX = /[aeiou]/gi;
 
 // Duplicates required, toLowerCase on every vocal would be slower
 const VOCAL_VAL_MAP: { [key: string]: number } = {
@@ -25,7 +25,8 @@ process.on('message', (filePath: string) => {
     reader.on('line', (line) => {
 
         // Find all vocals in line
-        const vocalsInLine = line.match(REGEX);
+        const vocalsInLine = line.match(VOCAL_REGEX);
+        VOCAL_REGEX.lastIndex = 0;
 
         if (vocalsInLine) {
 

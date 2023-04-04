@@ -4,8 +4,6 @@ const NUMBER_REGEX = /\d/g;
 
 process.on('message', (filePath: string) => {
 
-    console.log(filePath);
-
     let sumAll = 0;
 
     const reader = fileReader(filePath);
@@ -15,11 +13,12 @@ process.on('message', (filePath: string) => {
 
         // Find all numbers on current line
         const numbersInLine = line.match(NUMBER_REGEX);
+        NUMBER_REGEX.lastIndex = 0;
 
         if (numbersInLine) {
 
             // Sum all numbers
-            for (let i = 0, il = numbersInLine.length; i < il; i++) {
+            for (let i = 0, nl = numbersInLine.length; i < nl; i++) {
 
                 sumAll += parseInt(numbersInLine[i]);
 
