@@ -1,11 +1,9 @@
-import {sumFile} from "./modules/sumFile";
-import * as fs from "fs";
-import * as path from "path";
-import * as https from "https";
-import {decrypt} from "./modules/decrypt";
-import {unzip} from "./modules/unzip";
-import {sumBySentences} from "./modules/sumSentence";
-import {sumVocals} from "./modules/sumVocals";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as https from 'https';
+import {decrypt} from './modules/decrypt';
+import {unzip} from './modules/unzip';
+import {fork, Serializable} from 'child_process';
 
 const PORT = 3000;
 
@@ -21,6 +19,22 @@ const options = {
     cert: fs.readFileSync(path.join(__dirname, '../localhost.crt')),
 };
 
+const getFork = <R extends Serializable>(modulePath: string, filePath: string): Promise<R> => {
+
+    return new Promise((resolve) => {
+
+        const child = fork(path.join(__dirname, modulePath));
+
+        child.on('message', (response: R) => {
+            resolve(response);
+        });
+
+        child.send(filePath);
+
+    });
+
+};
+
 (async () => {
 
     await decrypt(IV_FILE, AUTH_FILE, PW_FILE, ENC_FILE, DEC_FILE);
@@ -31,16 +45,17 @@ const options = {
 
         // TODO: Handle parsing in child processes, again, time is running out :/
         return Promise.all([
-            sumFile(UNZIP_FILE),
-            sumVocals(UNZIP_FILE),
-            sumBySentences(UNZIP_FILE)
+            getFork<number>('./modules/sumFile', UNZIP_FILE),
+            getFork<number>('./modules/sumVocals', UNZIP_FILE),
+            getFork<string>('./modules/sumSentence', UNZIP_FILE)
         ]).then(([all, vocals, secret]) => {
 
             res.setHeader('content-type', 'application/json; charset=utf-8');
             res.writeHead(200);
             res.end(`
-                All numbers: ${all}
-                All vocals: ${vocals}
+                Sum numbers: ${all}
+                Sum vocals: ${vocals}
+                Numbers + Vocals: ${all + vocals}
                 Secret: ${secret}
             `);
 
