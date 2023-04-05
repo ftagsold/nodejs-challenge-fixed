@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as https from 'https';
 import {decrypt} from './modules/decrypt';
 import {unzip} from './modules/unzip';
-import {fork, Serializable} from 'child_process';
+import {parser} from './modules/parser';
 
 const PORT = 3000;
 
@@ -19,40 +19,38 @@ const options = {
     cert: fs.readFileSync(path.join(__dirname, '../localhost.crt')),
 };
 
-const getFork = <R extends Serializable>(modulePath: string, filePath: string): Promise<R> => {
-
-    return new Promise((resolve) => {
-
-        const child = fork(path.join(__dirname, modulePath));
-
-        child.on('message', (response: R) => {
-            resolve(response);
-        });
-
-        child.send(filePath);
-
-    });
-
-};
-
 (async () => {
-
-    await decrypt(IV_FILE, AUTH_FILE, PW_FILE, ENC_FILE, DEC_FILE);
-
-    await unzip(DEC_FILE, UNZIP_FILE);
 
     const server = https.createServer(options, (req, res) => {
 
-        return Promise.all([
-            getFork<number>('./modules/sumFile', UNZIP_FILE),
-            getFork<number>('./modules/sumVocals', UNZIP_FILE),
-            getFork<string>('./modules/sumSentence', UNZIP_FILE)
-        ]).then(([sumFile, sumVocals, secret]) => {
+        switch (req.url) {
+            case '/decrypt':
 
-            res.writeHead(200);
-            res.end(`Sum file: ${sumFile}\nSum vocals: ${sumVocals}\nSecret: ${secret}`);
+                decrypt(IV_FILE, AUTH_FILE, PW_FILE, ENC_FILE, DEC_FILE).then(() => {
+                    res.writeHead(200);
+                    res.end('Decrypted');
+                });
 
-        });
+                break;
+
+            case '/unzip':
+
+                unzip(DEC_FILE, UNZIP_FILE).then(() => {
+                    res.writeHead(200);
+                    res.end('Unzipped');
+                });
+
+                break;
+
+            case '/parse':
+
+                parser(UNZIP_FILE).then((result) => {
+                    res.writeHead(200);
+                    res.end(JSON.stringify(result));
+                });
+
+                break;
+        }
 
     });
 

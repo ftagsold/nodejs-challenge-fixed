@@ -9,8 +9,8 @@
 /source/modules/sumVocals.js.map
 /source/modules/unzip.js
 /source/modules/unzip.js.map
-/source/util/file-reader.js
-/source/util/file-reader.js.map
+/source/util/line-reader.js
+/source/util/line-reader.js.map
 /source/util/promisified.js
 /source/util/promisified.js.map
 /source/index.js
