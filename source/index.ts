@@ -3,7 +3,8 @@ import * as path from 'path';
 import * as https from 'https';
 import {decrypt} from './modules/decrypt';
 import {unzip} from './modules/unzip';
-import {parser} from './modules/parser';
+import {Parser} from "./modules/parser";
+import {ServerResponse} from "http";
 
 const PORT = 3000;
 
@@ -21,33 +22,46 @@ const options = {
 
 (async () => {
 
+    const errorhandler = (res: ServerResponse, err: Error) => {
+        res.writeHead(500);
+        res.end(err.message);
+    }
+
     const server = https.createServer(options, (req, res) => {
 
         switch (req.url) {
             case '/decrypt':
 
-                decrypt(IV_FILE, AUTH_FILE, PW_FILE, ENC_FILE, DEC_FILE).then(() => {
-                    res.writeHead(200);
-                    res.end('Decrypted');
-                });
+                decrypt(IV_FILE, AUTH_FILE, PW_FILE, ENC_FILE, DEC_FILE)
+                    .then(() => {
+                        res.writeHead(200);
+                        res.end('Decrypted');
+                    })
+                    .catch((err) => errorhandler(res, err));
 
                 break;
 
             case '/unzip':
 
-                unzip(DEC_FILE, UNZIP_FILE).then(() => {
-                    res.writeHead(200);
-                    res.end('Unzipped');
-                });
+                unzip(DEC_FILE, UNZIP_FILE)
+                    .then(() => {
+                        res.writeHead(200);
+                        res.end('Unzipped');
+                    })
+                    .catch((err) => errorhandler(res, err));
 
                 break;
 
             case '/parse':
 
-                parser(UNZIP_FILE).then((result) => {
-                    res.writeHead(200);
-                    res.end(JSON.stringify(result));
-                });
+                const parser = new Parser(10, UNZIP_FILE);
+
+                parser.parse()
+                    .then((result) => {
+                        res.writeHead(200);
+                        res.end(JSON.stringify(result));
+                    })
+                    .catch((err) => errorhandler(res, err));
 
                 break;
         }

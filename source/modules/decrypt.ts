@@ -3,7 +3,11 @@ import {createReadStream, createWriteStream} from 'fs';
 import {createDecipheriv} from 'crypto';
 import {fileReaderAsync, pipelineAsync} from '../util/promisified';
 
+// Decrypts a file
 export const decrypt = async (ivFile: string, authFile: string, pwFile: string, sourceFile: string, targetFile: string) => {
+
+    console.time(`Decrypt`);
+    console.info(`Decrypting file ${sourceFile} to ${targetFile}`);
 
     const iv = await getFile(ivFile, null);
     const pw = await getFile(pwFile, 'utf8');
@@ -15,7 +19,8 @@ export const decrypt = async (ivFile: string, authFile: string, pwFile: string, 
     const decipher = createDecipheriv('aes-256-gcm', pw.slice(0, 32), iv);
     decipher.setAuthTag(<Buffer>auth);
 
-    return pipelineAsync(source, decipher, target);
+    return pipelineAsync(source, decipher, target)
+        .then(() => console.timeEnd(`Decrypt`));
 };
 
 const getFile = async (authFile: string, encoding: 'utf8' | null) => {

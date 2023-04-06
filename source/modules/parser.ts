@@ -1,123 +1,199 @@
-import {lineReader} from '../util/line-reader';
+import * as fs from "fs";
+import * as path from "path";
+import {createInterface, Interface} from "readline";
+import {Heap} from "../util/heap";
 
-const DIGIT_REGEX = /\d/g;
-const SPLIT_REGEX = /[.;!?]/g;
-const VOWEL_REGEX = /[aAeEiIoOuU]/g;
+export type Result = { secretStr: string, sumDigits: number, sumVowels: number };
 
-export type Result = { sumDigits: number, sumVowels: number, secret: string };
+/**
+ * Parses a file and returns a result object.
+ * The result object contains the sum of all digits in the file,
+ * the sum of all vowels in the file and the 10 biggest sums of digits in sentences.
+ */
+export class Parser {
 
-export const VOWEL_VAL_MAP: { [key: string]: number } = {
-    a: 2,
-    A: 2,
-    e: 4,
-    E: 4,
-    i: 8,
-    I: 8,
-    o: 16,
-    O: 16,
-    u: 32,
-    U: 32
-};
+    private heap: Heap;
+    private reader: Interface;
 
-export const parser = async (filePath: string): Promise<Result> => {
+    private sumDigits: number = 0;
+    private sumVowels: number = 0;
 
-    return new Promise((resolve) => {
+    private sentences: string[] = [];
 
-        let sumDigits = 0;
-        let sumVowels = 0;
+    private readonly DIGIT_REGEX = /\d/g;
+    private readonly SPLIT_REGEX = /[.!?]\s|\n/g;
+    private readonly VOWEL_REGEX = /[aAeEiIoOuU]/g;
 
-        const topTen: number[] = [];
+    private static readonly VOWEL_VAL_MAP: { [key: string]: number } = {
+        a: 2,
+        A: 2,
+        e: 4,
+        E: 4,
+        i: 8,
+        I: 8,
+        o: 16,
+        O: 16,
+        u: 32,
+        U: 32
+    };
 
-        const reader = lineReader(filePath);
+    constructor(readonly size: number, readonly filePath: string) {
+        this.heap = new Heap(size);
+        this.reader = this.getInterface(filePath);
+    }
 
-        // Read file line by line (expect 6,4gb :D)
-        reader.on('line', (line) => {
+    // Parse the file and return a promise with the result object
+    parse(): Promise<Result> {
 
-            if (line.trim()) {
+        console.time('Parsing');
+        console.info(`Parsing file ${this.filePath}`);
 
-                const sentences = line.split(SPLIT_REGEX);
-                SPLIT_REGEX.lastIndex = 0;
+        return new Promise((resolve, reject) => {
 
-                for (let si = 0, sl = sentences.length; si < sl; si++) {
+            let incomplete = '';
 
-                    let sumSentence = 0;
+            // Read the file line by line (expect huge files)
+            this.reader.on('line', (line) => {
 
-                    const sentence = sentences[si];
+                line = line.trim();
 
-                    if (sentence.trim()) {
+                if (line) {
 
-                        const digits = sentence.match(DIGIT_REGEX);
-                        const vowels = sentence.match(VOWEL_REGEX);
+                    line = (incomplete ? (incomplete + ' ') : '') + line;
 
-                        DIGIT_REGEX.lastIndex = 0;
-                        VOWEL_REGEX.lastIndex = 0;
+                    const sentences = line.split(this.SPLIT_REGEX);
 
-                        if (digits) {
+                    // Reset last index to prevent faulty results caused by global modifier
+                    this.SPLIT_REGEX.lastIndex = 0;
 
-                            for (let di = 0, dl = digits.length; di < dl; di++) {
+                    // If there was more than one complete sentence
+                    // add all but the last sentence to the sentences array
+                    if (sentences.length > 1) {
 
-                                const digit = parseInt(digits[di], 10);
+                        this.sentences.push(
+                            ...sentences.slice(0, -1)
+                        );
 
-                                sumSentence += digit;
-                                sumDigits += digit;
+                    }
 
-                            }
+                    // Check if the current string ends with a sentence delimiter
+                    if (!this.lineEndsWithSentenceDelimiter(line)) {
 
-                        }
+                        // If the current string does not end with a sentence delimiter
+                        // it is incomplete and will be added to the next line
+                        incomplete += sentences.slice(-1).join(' ');
 
-                        if (vowels) {
+                    } else {
 
-                            for (let vi = 0, vl = vowels.length; vi < vl; vi++) {
+                        // If the current string ends with a sentence delimiter
+                        // it is complete and will be added to the sentences array
+                        this.sentences.push(
+                            ...sentences.slice(-1)
+                        );
 
-                                sumVowels += VOWEL_VAL_MAP[vowels[vi]];
+                        incomplete = '';
 
-                            }
+                    }
 
-                        }
+                    // Parse found sentences
+                    this.flush();
 
-                        if (topTen.length < 10) {
+                }
 
-                            topTen.push(sumSentence);
+            });
 
-                        } else {
+            this.reader.on('error', (err) => {
+                reject(err);
+            });
 
-                            const min = Math.min(...topTen);
+            this.reader.on('close', () => {
 
-                            if (sumSentence > min) {
+                this.flush();
 
-                                topTen.splice(
-                                    topTen.indexOf(min), 1
-                                );
+                resolve({
+                    sumDigits: this.sumDigits,
+                    sumVowels: this.sumVowels,
+                    secretStr: this.heap.toString()
+                });
 
-                                topTen.push(sumSentence);
+                console.timeEnd('Parsing');
 
-                            }
+            });
 
-                        }
+        });
+    }
+
+    /*
+     * Creates a readline interface for the given file.
+     */
+    private getInterface(filePath: string): Interface {
+        return createInterface({
+            input: fs.createReadStream(path.join(__dirname, filePath))
+        });
+    }
+
+    /*
+     * Checks if the given line ends with a sentence delimiter.
+     */
+    private lineEndsWithSentenceDelimiter(line: string): boolean {
+        return line.endsWith('.') || line.endsWith('!') || line.endsWith('?');
+    }
+
+    /*
+     * Flushes the current sentences and sums the digits and vowels.
+     * The 10 biggest sums of digits in sentences are added to the heap.
+     */
+    private flush(): void {
+
+        // Iterate over all sentences
+        for (let si = 0, sl = this.sentences.length; si < sl; si++) {
+
+            let sumSentence = 0;
+
+            const sentence = this.sentences[si].trim();
+
+            if (sentence) {
+
+                // Match all digits and vowels in the sentence
+                const digits = sentence.match(this.DIGIT_REGEX);
+                const vowels = sentence.match(this.VOWEL_REGEX);
+
+                this.DIGIT_REGEX.lastIndex = 0;
+                this.VOWEL_REGEX.lastIndex = 0;
+
+                if (digits) {
+
+                    // Sum the digits
+                    for (let di = 0, dl = digits.length; di < dl; di++) {
+
+                        const digit = parseInt(digits[di], 10);
+
+                        this.sumDigits += digit;
+                        sumSentence += digit;
 
                     }
 
                 }
 
+                if (vowels) {
+
+                    // Sum the vowels
+                    for (let vi = 0, vl = vowels.length; vi < vl; vi++) {
+
+                        this.sumVowels += Parser.VOWEL_VAL_MAP[vowels[vi]];
+
+                    }
+
+                }
+
+                this.heap.push(sumSentence);
+
             }
 
-        });
+        }
 
-        // Resolve promise with final result
-        reader.on('close', () => {
+        this.sentences = [];
 
-            resolve({
-                sumDigits, sumVowels, secret: topTen.reduce((result, sum, i) => {
+    }
 
-                    // Get char code by sum minus current index
-                    result += String.fromCharCode(sum - i);
-
-                    return result;
-                }, '')
-            });
-
-        });
-
-    });
-
-};
+}
